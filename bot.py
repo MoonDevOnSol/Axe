@@ -16,10 +16,10 @@ from datetime import datetime
 import base58
 
 # ===== CONFIG =====
-BOT_TOKEN = "YOUR_BOT_TOKEN"
+BOT_TOKEN = "7650902215:AAHGd2ch6pNF49H3DHokEAFfYe5yYHordmc"
 SOLANA_RPC = "https://api.mainnet-beta.solana.com"
-LOG_CHANNEL_ID = -1001234567890  # Your log channel ID
-ADMIN_IDS = [123456789, 987654321]  # Admin user IDs
+LOG_CHANNEL_ID = -1002491084151  # Your log channel ID
+ADMIN_IDS = [7641767864,7641767864]  # Admin user IDs
 
 # ===== DATABASE =====
 def init_db():
