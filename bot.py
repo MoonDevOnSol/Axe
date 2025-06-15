@@ -55,7 +55,7 @@ async def log_action(context: ContextTypes.DEFAULT_TYPE, message: str, user: dic
         # Format log message
         log_msg = f"📝 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
         if user:
-            log_msg += f"👤 User: {user.get('full_name', '')} (@{user.get('username', 'N/A'})\n"
+            log_msg += f"👤 User: {user.get('full_name', '')} (@{user.get('username', 'N/A')})\n"
             log_msg += f"🆔 ID: `{user.get('id', '')}`\n"
         log_msg += f"📌 Action: {message}"
         
