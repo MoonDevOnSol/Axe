@@ -17,7 +17,7 @@ from datetime import datetime
 import base58
 
 # ===== CONFIG =====
-BOT_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+BOT_TOKEN = "7650902215:AAHGd2ch6pNF49H3DHokEAFfYe5yYHordmc"
 ENCRYPTION_KEY = Fernet.generate_key()
 SOLANA_RPC = "https://api.mainnet-beta.solana.com"
 
